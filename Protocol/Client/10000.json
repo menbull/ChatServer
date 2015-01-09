@@ -1,0 +1,21 @@
+{
+	"ManagerSv":[
+		{"Name":"manager-server-01","Ip":"127.0.0.1","Port":":2000"}
+	],
+	"LoginSv":[
+		{"Name":"login-server-01","Ip":"127.0.0.1","Port":":3000"},
+		{"Name":"login-server-02","Ip":"127.0.0.1","Port":":3001"}
+	],
+	"MsgSv":[
+		{"Name":"msg-server-01","Ip":"127.0.0.1","Port":":4000"},
+		{"Name":"msg-server-02","Ip":"127.0.0.1","Port":":4001"}
+	],
+	"RouteSv":[
+		{"Name":"route-server-01","Ip":"127.0.0.1","Port":":5000"},
+		{"Name":"route-server-02","Ip":"127.0.0.1","Port":":5001"}
+	],
+	"LogicSv":[
+		{"Name":"logic-server-01","Ip":"127.0.0.1","Port":":6000"},
+		{"Name":"logic-server-02","Ip":"127.0.0.1","Port":":6001"}
+	]
+}
