@@ -4,7 +4,6 @@ import (
 	"ChatServer/Logger"
 	"ChatServer/Servers"
 	"encoding/json"
-	//"math/rand"
 	"fmt"
 	"net"
 	"os"
@@ -14,7 +13,9 @@ import (
 
 var serverList Servers.ServerList
 var managerClient *net.Conn
-var loginServer *net.TCPListener
+var loginServerListener *net.TCPListener
+
+const HEARTBEAT_INTERVAL = 1
 
 func main() {
 	setLogger()
@@ -29,7 +30,7 @@ func setLogger() {
 }
 
 func getServerConfig() {
-	serverConfig, err := os.Open("../config/Config.conf")
+	serverConfig, err := os.Open("../Config/Config.conf")
 	defer serverConfig.Close()
 	checkError(err)
 
@@ -56,39 +57,35 @@ func setupLoginServer() {
 	for {
 		buffer := make([]byte, 512)
 		length, err := managerClient.Read(buffer)
-		checkError(err)
 		if err != nil {
 			defer Logger.Info("Disconnected from " + serverList.ManagerSv[0].Name + " " + managerClient.RemoteAddr().String())
 			Logger.Info("Login Server Closed")
-			exitServer()
+			exitServer(false)
 		}
 
 		cmd := strings.Split(string(buffer[:length]), "|")
-
 		if cmd[0] == "STOP" {
 			Logger.Info("Login Server Closed")
-			os.Exit(0)
+			exitServer(true)
 		}
 		if cmd[0] == "SETUP" {
-			Logger.Info("Login Server Setup Info. name:" + cmd[1] + " ip:" + cmd[2] + " port" + cmd[3])
+			Logger.Info("Login Server Setup Info. name:" + cmd[1] + " ip:" + cmd[2] + " port:" + cmd[3])
 			go createLoginServer(cmd[1], cmd[2], cmd[3])
 		}
 		if cmd[0] == "UNAVAILABLE" {
 			Logger.Warn("No Available Free Login Server")
-			exitServer()
+			exitServer(false)
 		}
-		//other operation
+		//Todo:other operation
 	}
 }
 
 func createLoginServer(name, ip, port string) {
-	//rand.Seed(time.Now().Unix())
-
 	address := ip + port
 	addr, err := net.ResolveTCPAddr("tcp", address)
 	checkError(err)
 
-	loginServer, err := net.ListenTCP("tcp", addr)
+	loginServerListener, err := net.ListenTCP("tcp", addr)
 	checkError(err)
 
 	Logger.Info("Login Server Start Success")
@@ -96,10 +93,8 @@ func createLoginServer(name, ip, port string) {
 	Logger.Info("Listening ip: " + ip)
 	Logger.Info("Listening port" + port)
 
-	//go startHeartBeat(name)
-
 	for {
-		conn, err := loginServer.Accept()
+		conn, err := loginServerListener.Accept()
 		checkError(err)
 		Logger.Info("Login Server Accepted a new connection. A client from " + conn.RemoteAddr().String())
 		go dealLoginServer(conn)
@@ -111,11 +106,7 @@ func createLoginServer(name, ip, port string) {
 
 func sendHeartBeat() {
 	Logger.Info(time.Now().Format("2006-01-02 15:04:05") + "----发送心跳")
-}
-
-func startHeartBeat(name string) {
-	Logger.Info("Login Server: " + name + " HeartBeat Start")
-	time.AfterFunc(1*time.Second, sendHeartBeat)
+	time.AfterFunc(HEARTBEAT_INTERVAL*time.Second, sendHeartBeat)
 }
 
 func dealLoginServer(conn net.Conn) {
@@ -127,7 +118,6 @@ func dealLoginServer(conn net.Conn) {
 		if err != nil {
 			return
 		}
-
 	}
 }
 
@@ -137,9 +127,13 @@ func checkError(err error) {
 	}
 }
 
-func exitServer() {
-	fmt.Println("按回车键退出...")
-	var str string
-	fmt.Scanf("%v", &str)
-	os.Exit(0)
+func exitServer(bDirectExit bool) {
+	if bDirectExit {
+		os.Exit(0)
+	} else {
+		fmt.Println("按回车键退出...")
+		var str string
+		fmt.Scanf("%v", &str)
+		os.Exit(0)
+	}
 }

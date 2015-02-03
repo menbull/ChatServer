@@ -20,9 +20,9 @@ type ServerList struct {
 }
 
 type Server struct {
-	Name        string
-	Ip          string
-	Port        string
-	IsAvailable bool
-	Conn        net.Conn
+	Name    string
+	Ip      string
+	Port    string
+	IsUsing bool
+	Conn    net.Conn
 }

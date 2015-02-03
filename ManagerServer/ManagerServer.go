@@ -10,7 +10,7 @@ import (
 )
 
 var serverList Servers.ServerList
-var managerServer *net.TCPListener
+var managerServerListner *net.TCPListener
 
 func main() {
 	setLogger()
@@ -25,7 +25,7 @@ func setLogger() {
 }
 
 func getServerConfig() {
-	serverConfig, err := os.Open("../config/Config.conf")
+	serverConfig, err := os.Open("../Config/Config.conf")
 	defer serverConfig.Close()
 	checkError(err)
 
@@ -45,7 +45,7 @@ func setupManagerServer() {
 	addr, err := net.ResolveTCPAddr("tcp", address)
 	checkError(err)
 
-	managerServer, err = net.ListenTCP("tcp", addr)
+	managerServerListner, err = net.ListenTCP("tcp", addr)
 	checkError(err)
 
 	Logger.Info("Manager Server Start Success")
@@ -54,7 +54,7 @@ func setupManagerServer() {
 	Logger.Info("Listening port" + serverList.ManagerSv[0].Port)
 
 	for {
-		conn, err := managerServer.Accept()
+		conn, err := managerServerListner.Accept()
 		checkError(err)
 		Logger.Info("Manager Server Accepted a new connection. A server from " + conn.RemoteAddr().String())
 		go dealManagerServer(conn)
@@ -76,16 +76,16 @@ func dealManagerServer(conn net.Conn) {
 			defer Logger.Info("Disconnected from " + serverName + " " + conn.RemoteAddr().String())
 			switch serverType {
 			case Servers.LOGIN_SERVER:
-				serverList.LoginSv[id].IsAvailable = false
+				serverList.LoginSv[id].IsUsing = false
 				serverList.LoginSv[id].Conn = nil
 			case Servers.MSG_SERVER:
-				serverList.MsgSv[id].IsAvailable = false
+				serverList.MsgSv[id].IsUsing = false
 				serverList.MsgSv[id].Conn = nil
 			case Servers.ROUTE_SERVER:
-				serverList.RouteSv[id].IsAvailable = false
+				serverList.RouteSv[id].IsUsing = false
 				serverList.RouteSv[id].Conn = nil
 			case Servers.LOGIC_SERVER:
-				serverList.LogicSv[id].IsAvailable = false
+				serverList.LogicSv[id].IsUsing = false
 				serverList.LogicSv[id].Conn = nil
 			}
 			return
@@ -107,30 +107,49 @@ func dealManagerServer(conn net.Conn) {
 					Logger.Warn("No Available Free Login Server")
 					return
 				}
-			}
-			if cmd[1] == "MSG_SERVER" {
+			} else if cmd[1] == "MSG_SERVER" {
 				Logger.Info("Msg Server Setup Request Arrived.")
 				serverType = Servers.MSG_SERVER
 				id, serverName, ip, port = findFreeServer(Servers.MSG_SERVER)
 				if id != -1 {
 					serverList.MsgSv[id].Conn = conn
+				} else {
+					conn.Write([]byte("UNAVAILABLE"))
+					Logger.Warn("No Available Free Msg Server")
+					return
 				}
-			}
-			if cmd[1] == "ROUTE_SERVER" {
+			} else if cmd[1] == "ROUTE_SERVER" {
 				Logger.Info("Route Server Setup Request Arrived.")
 				serverType = Servers.ROUTE_SERVER
 				id, serverName, ip, port = findFreeServer(Servers.ROUTE_SERVER)
 				if id != -1 {
 					serverList.RouteSv[id].Conn = conn
+				} else {
+					conn.Write([]byte("UNAVAILABLE"))
+					Logger.Warn("No Available Free Route Server")
+					return
 				}
-			}
-			if cmd[1] == "LOGIC_SERVER" {
+			} else if cmd[1] == "LOGIC_SERVER" {
 				Logger.Info("Logic Server Setup Request. Logic Server addr: " + conn.RemoteAddr().String())
 				serverType = Servers.LOGIC_SERVER
 				id, serverName, ip, port = findFreeServer(Servers.LOGIC_SERVER)
 				if id != -1 {
 					serverList.LogicSv[id].Conn = conn
+				} else {
+					conn.Write([]byte("UNAVAILABLE"))
+					Logger.Warn("No Available Free Logic Server")
+					return
 				}
+			}
+		} else if cmd[0] == "HEARTBEAT" {
+			if cmd[1] == "LOGIN_SERVER" {
+				Logger.Info("----收到登陆服务器: '" + cmd[2] + "' 的心跳")
+			} else if cmd[1] == "MSG_SERVER" {
+				Logger.Info("----收到消息服务器: '" + cmd[2] + "' 的心跳")
+			} else if cmd[1] == "ROUTE_SERVER" {
+				Logger.Info("----收到路由服务器: '" + cmd[2] + "' 的心跳")
+			} else if cmd[1] == "LOGIC_SERVER" {
+				Logger.Info("----收到逻辑服务器: '" + cmd[2] + "' 的心跳")
 			}
 		}
 	}
@@ -140,29 +159,29 @@ func findFreeServer(serverType int) (int, string, string, string) {
 	switch serverType {
 	case Servers.LOGIN_SERVER:
 		for i := 0; i < len(serverList.LoginSv[:]); i++ {
-			if serverList.LoginSv[i].Name != "" && serverList.LoginSv[i].IsAvailable == false {
-				serverList.LoginSv[i].IsAvailable = true
+			if serverList.LoginSv[i].Name != "" && serverList.LoginSv[i].IsUsing == false {
+				serverList.LoginSv[i].IsUsing = true
 				return i, serverList.LoginSv[i].Name, serverList.LoginSv[i].Ip, serverList.LoginSv[i].Port
 			}
 		}
 	case Servers.MSG_SERVER:
 		for i := 0; i < len(serverList.MsgSv[:]); i++ {
-			if serverList.MsgSv[i].Name != "" && serverList.MsgSv[i].IsAvailable == false {
-				serverList.MsgSv[i].IsAvailable = true
+			if serverList.MsgSv[i].Name != "" && serverList.MsgSv[i].IsUsing == false {
+				serverList.MsgSv[i].IsUsing = true
 				return i, serverList.MsgSv[i].Name, serverList.MsgSv[i].Ip, serverList.MsgSv[i].Port
 			}
 		}
 	case Servers.ROUTE_SERVER:
 		for i := 0; i < len(serverList.RouteSv[:]); i++ {
-			if serverList.RouteSv[i].Name != "" && serverList.RouteSv[i].IsAvailable == false {
-				serverList.RouteSv[i].IsAvailable = true
+			if serverList.RouteSv[i].Name != "" && serverList.RouteSv[i].IsUsing == false {
+				serverList.RouteSv[i].IsUsing = true
 				return i, serverList.RouteSv[i].Name, serverList.RouteSv[i].Ip, serverList.RouteSv[i].Port
 			}
 		}
 	case Servers.LOGIC_SERVER:
 		for i := 0; i < len(serverList.LogicSv[:]); i++ {
-			if serverList.LogicSv[i].Name != "" && serverList.LogicSv[i].IsAvailable == false {
-				serverList.LogicSv[i].IsAvailable = true
+			if serverList.LogicSv[i].Name != "" && serverList.LogicSv[i].IsUsing == false {
+				serverList.LogicSv[i].IsUsing = true
 				return i, serverList.LogicSv[i].Name, serverList.LogicSv[i].Ip, serverList.LogicSv[i].Port
 			}
 		}

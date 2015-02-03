@@ -19,3 +19,20 @@ RESTART
 Manager<-LoginServer
        <-Connector<-Logic
           Database<-Logic
+		
+		
+//Manager端消息类型
+const (
+	"SETUP"       //创建子服务器
+	"UNAVAILABLE" //没有可用子服务器
+	"STOP"        //停止子服务器
+	//other
+)
+
+//其他子Server共用消息类型
+const (
+	"ONLINE"    //请求创建子服务器
+	"HEARTBEAT" //子服务器心跳消息
+	//other
+)
+
