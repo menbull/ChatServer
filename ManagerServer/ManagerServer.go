@@ -47,6 +47,7 @@ func setupManagerServer() {
 
 	managerServerListner, err = net.ListenTCP("tcp", addr)
 	checkError(err)
+	defer managerServerListner.Close()
 
 	Logger.Info("Manager Server Start Success")
 	Logger.Info("Manager Server name: " + serverList.ManagerSv[0].Name)
